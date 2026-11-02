@@ -19,14 +19,14 @@ const SANDS={
 
 /* Chapters */
 const CHAPTERS=[
-  {name:"El Hierro",cls:"hierro",from:1,to:15,souvenir:"plgr",end:"A souvenir bottle of El Hierro sand is on your shelf. La Palma is next, eruption included."},
-  {name:"La Palma",cls:"palma",from:16,to:30,souvenir:"apla",end:"A tall bottle of La Palma ash and picón joins the shelf. La Gomera is next."},
-  {name:"La Gomera",cls:"gomera",from:31,to:45,souvenir:"glgp",end:"La Gomera's bottle is on the shelf. Tenerife is next, and it brings sulfur."},
-  {name:"Tenerife",cls:"tenerife",from:46,to:60,souvenir:"psap",end:"Teide in a bottle, on the shelf. Gran Canaria is next."},
-  {name:"Gran Canaria",cls:"canaria",from:61,to:75,souvenir:"gcgc",end:"A jar of Maspalomas dune and calima joins the shelf. Fuerteventura is next."},
-  {name:"Fuerteventura",cls:"fuerte",from:76,to:90,souvenir:"jgjc",end:"Fuerteventura's long bottle is on the shelf. Lanzarote is next, with two new sands."},
-  {name:"Lanzarote",cls:"lanzarote",from:91,to:105,souvenir:"pkoj",end:"Timanfaya survived. Lanzarote's flask joins the shelf. One island left."},
-  {name:"La Graciosa",cls:"graciosa",from:106,to:120,souvenir:"jogk",end:"Every island sorted. The shelf is full, and Archipiélago mode is open."},
+  {name:"El Hierro",cls:"hierro",from:1,to:15,souvenir:"plgr",end:"A sticker of El Hierro sand is on your board. La Palma is next, eruption included."},
+  {name:"La Palma",cls:"palma",from:16,to:30,souvenir:"apla",end:"A sticker of La Palma ash and picón joins the board. La Gomera is next."},
+  {name:"La Gomera",cls:"gomera",from:31,to:45,souvenir:"glgp",end:"La Gomera's sticker is on the board. Tenerife is next, and it brings sulfur."},
+  {name:"Tenerife",cls:"tenerife",from:46,to:60,souvenir:"psap",end:"Teide in a bottle, stuck on the board. Gran Canaria is next."},
+  {name:"Gran Canaria",cls:"canaria",from:61,to:75,souvenir:"gcgc",end:"A sticker of Maspalomas dune and calima joins the board. Fuerteventura is next."},
+  {name:"Fuerteventura",cls:"fuerte",from:76,to:90,souvenir:"jgjc",end:"Fuerteventura's long bottle is stuck on the board. Lanzarote is next, with two new sands."},
+  {name:"Lanzarote",cls:"lanzarote",from:91,to:105,souvenir:"pkoj",end:"Timanfaya survived. Lanzarote's flask joins the board. One island left."},
+  {name:"La Graciosa",cls:"graciosa",from:106,to:120,souvenir:"jogk",end:"Every island sorted. The board is full, and Archipiélago mode is open."},
   {name:"Archipiélago",cls:null,from:121,to:Infinity,endless:true}
 ];
 const ISLAND_CH=CHAPTERS.filter(c=>!c.endless);
@@ -86,7 +86,7 @@ const STORY={
   96:{t:"New sand",s:"k"},
   105:{t:"Timanfaya",lava:1,x:"1 September 1730. The eruptions went on for six years and buried about a quarter of the island. Last level of Lanzarote."},
   106:{t:"La Graciosa",x:"Small bottles, all ten sands, full calima. The island has no paved roads and this chapter has no mercy."},
-  120:{t:"Last island level",x:"Eleven bottles of sand, every layer hidden except the top. Finish this and the shelf is full."},
+  120:{t:"Last island level",x:"Eleven bottles of sand, every layer hidden except the top. Finish this and the board is full."},
   121:{t:"Archipiélago",x:"Endless from here on: random islands, random sands, random calima. Helps still come every 10 levels."}
 };
 
@@ -243,9 +243,11 @@ function tick(){
 function renderHome(){
   document.body.className="";setFx("");
   const h=$("home");
-  const shelf=ISLAND_CH.map(ch=>{const done=save.done>=ch.to;const S=SHAPES[ch.cls];
+  // Finished islands become stickers on the board, each at its own slight tilt
+  const TILT=[-6,4,-3,7,-5,3,-7,5];
+  const shelf=ISLAND_CH.map((ch,i)=>{const done=save.done>=ch.to;const S=SHAPES[ch.cls];
     const bands=done?ch.souvenir.split("").map(s=>`<i style="background-image:url(${TILES[s]})"></i>`).join(""):"";
-    return`<div class="slot${done?" done":""}"><div class="mini" style="--nr:${S.nr};--br:${S.br}"><div class="mn"></div><div class="mb">${bands}</div></div><span>${ch.name}</span></div>`}).join("");
+    return`<div class="slot${done?" done":""}" style="--tilt:${TILT[i]}deg"><div class="mini" style="--nr:${S.nr};--br:${S.br}"><div class="mn"></div><div class="mb">${bands}</div></div><span>${ch.name}</span></div>`}).join("");
   const chapters=CHAPTERS.filter(c=>c.from<=save.level).map(c=>{
     if(c.endless)return`<div class="chapter"><div class="label">Archipiélago &middot; endless &middot; ${Math.max(0,save.done-120)} sorted</div></div>`;
     const curCh=save.level>=c.from&&save.level<=c.to;
@@ -253,7 +255,7 @@ function renderHome(){
     return`<details class="chapter" ${curCh?"open":""}><summary class="label">${c.name} &middot; ${Math.max(0,Math.min(save.done,c.to)-c.from+1)} of ${c.to-c.from+1}</summary><div class="dots">${dots}</div></details>`}).reverse().join("");
   const next=true;
   h.innerHTML=`<div><h1 class="logo">Picón</h1><p class="tag">Sort the sands of the islands, one bottle at a time.</p></div>
-    <div><div class="label">Souvenir shelf</div><div class="shelf">${shelf}</div></div>
+    <div><div class="label">Souvenirs</div><div class="shelf">${shelf}</div></div>
     <button class="cta" id="go" ${next?"":"disabled"}>Play level ${save.level}</button>
     ${chapters}
     <div class="links"><button class="reset" id="how">How to play</button><button class="reset" id="wipe">Reset progress</button></div>`;
@@ -447,7 +449,7 @@ function win(){
   const body=chapterEnd?`<h2>${ch.name}, done</h2><p>${ch.end}</p>`:`<h2>Level ${L} sorted</h2><p>${cur.undos} of 3 undos left unused.</p>`;
   const earnHtml=earn?`<p style="color:var(--fg)">You earned a help. Pick one to keep:</p><div class="pick">${Object.keys(HELPS).map(k=>`<button class="opt" data-h="${k}"><strong>${HELPS[k].name}</strong><small>${HELPS[k].earn}</small></button>`).join("")}</div>`:"";
   const goHome=L===120;
-  modal(body+earnHtml+`<button class="cta" id="next" ${earn?"disabled":""}>${goHome?"See the full shelf":`Level ${L+1}`}</button>`);
+  modal(body+earnHtml+`<button class="cta" id="next" ${earn?"disabled":""}>${goHome?"See the full board":`Level ${L+1}`}</button>`);
   if(earn)document.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{choice=o.dataset.h;document.querySelectorAll(".opt").forEach(x=>x.classList.toggle("on",x===o));$("next").disabled=false});
   $("next").onclick=()=>{
     if(earn&&choice){save.helps[choice]++;save.earned.push(L);persist()}
