@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#06151a">
+<meta name="description" content="Sort the volcanic sands of the Canary Islands, one bottle at a time.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Picón">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Picón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div class="app" id="app">
+  <section class="home" id="home"></section>
+  <section class="game" id="game" hidden>
+    <div class="top">
+      <div>
+        <div class="label" id="chap">El Hierro</div>
+        <div class="lvl" id="lvl">1</div>
+        <div class="prog" id="prog"></div>
+      </div>
+      <div class="mode" id="mode"></div>
+    </div>
+    <div class="stage"><div class="board" id="board"></div></div>
+    <div class="bar">
+      <button class="tool" id="bHome"><b>Isla</b>Home</button>
+      <button class="tool" id="bRestart"><b>&#8635;</b>Restart</button>
+      <button class="tool" id="bUndo"><b id="undoN">3</b>Undo</button>
+      <button class="tool" id="bHelp"><b id="helpN">0</b>Help</button>
+    </div>
+  </section>
+</div>
+<div id="modal"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
