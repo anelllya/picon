@@ -43,20 +43,24 @@ const SHAPES={
   graciosa:{w:52,h:118,nr:.46,nh:12,br:"22px 22px 26px 26px"}
 };
 const FX={palma:"ash",gomera:"mist",tenerife:"stars",canaria:"dust",fuerte:"wind",lanzarote:"heat",graciosa:"stars"};
+/* pick: generate that many solvable boards and keep the one where the most first pours are traps.
+   With two spare bottles almost nothing is a trap, so the early islands run on one. */
 function cfg(level){
-  if(level<=7)return{sands:"plg",empty:2,haze:0};
-  if(level<=10)return{sands:"plg",empty:1,haze:0};
-  if(level<=14)return{sands:"plgr",empty:2,haze:0};
-  if(level===15)return{sands:"plgr",empty:1,haze:0};
-  if(level<=18)return{sands:"plga",empty:2,haze:0};
-  if(level===19)return{sands:"plga",empty:2,haze:1};
-  if(level<=21)return{sands:"plgar",empty:2,haze:0};
-  if(level===22||level===25||level===28)return{sands:"plgar",empty:2,haze:1};
-  if(level===27||level===29)return{sands:"plgar",empty:1,haze:0};
-  if(level===30)return{sands:"plgar",empty:2,haze:2};
-  if(level<=30)return{sands:"plgar",empty:2,haze:0};
-  if(level<=45)return{sands:level<=37?"plgarg":level<=44?"plgarpl":"plgarplg",empty:2,haze:level===45?2:level%3===0?1:0};
-  if(level<=60)return{sands:level<=50?"plgars":level<=55?"plgarsp":"plgarsgl",empty:2,haze:level%2===0?2:0};
+  if(level<=2)return{sands:"plg",empty:2,haze:0};
+  if(level<=5)return{sands:"plg",empty:1,haze:0,pick:8};
+  if(level<=8)return{sands:"plgl",empty:1,haze:0,pick:8};
+  if(level<=10)return{sands:"plgp",empty:1,haze:0,pick:8};
+  if(level<=14)return{sands:"plgr",empty:1,haze:0,pick:8};
+  if(level===15)return{sands:"plgrl",empty:1,haze:0,pick:8};
+  if(level<=18)return{sands:"plga",empty:1,haze:0,pick:8};
+  if(level===19)return{sands:"plga",empty:1,haze:1,pick:8};
+  if(level<=21)return{sands:"plgar",empty:1,haze:0,pick:8};
+  if(level===22||level===25||level===28)return{sands:"plgar",empty:1,haze:1,pick:8};
+  if(level===27||level===29)return{sands:"plgarl",empty:1,haze:0,pick:8};
+  if(level===30)return{sands:"plgarp",empty:1,haze:2,pick:8};
+  if(level<=30)return{sands:"plgarp",empty:1,haze:0,pick:8};
+  if(level<=45)return{sands:level<=37?"plgarg":level<=44?"plgarpl":"plgarplg",empty:level===45?2:1,haze:level===45?2:level%3===0?1:0,pick:8};
+  if(level<=60)return{sands:level<=50?"plgars":level<=55?"plgarsp":"plgarsgl",empty:1,haze:level%2===0?2:0,pick:8};
   if(level<=75)return{sands:level<=67?"plgarsc":"plgarscp",empty:2,haze:level===75?3:level%2===1?2:0};
   if(level<=90)return{sands:level===90?"plgarscjg":"plgarscj",empty:2,haze:level<=80?2:3};
   if(level<=105)return{sands:level<=95?"plgarscjo":"plgarscjok",empty:2,haze:3};
@@ -174,17 +178,24 @@ function solvable(start,hid0=start.map(()=>0),cap=150000){
       if(dfs(nb,nh))return true}
     return false}
   return dfs(start,hid0)?true:over?null:false}
+/* Share of the opening pours that leave the board unwinnable */
+function trapShare(bs){const ms=movesOf(bs,bs.map(()=>0));let bad=0;
+  for(const[i,j,n]of ms){const nb=bs.map(x=>x.slice());for(let q=0;q<n;q++)nb[j].push(nb[i].pop());if(solvable(nb,undefined,20000)===false)bad++}
+  return ms.length?bad/ms.length:0}
 function generate(level){
   const c=cfg(level);const r=rng(level*1009+17);
   for(let empty=c.empty;empty<=3;empty++){
-    for(let t=0;t<300;t++){
+    let best=null,bestScore=-1,found=0;
+    for(let t=0;t<300&&found<(c.pick||1);t++){
       const pool=[];for(const s of c.sands)for(let k=0;k<CAP;k++)pool.push(s);
       for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
       const bs=[];for(let i=0;i<c.sands.length;i++)bs.push(pool.slice(i*CAP,i*CAP+CAP));
       if(bs.some(b=>runLen(b)>=3))continue;
       if(c.haze&&bs.some(b=>{for(let k=0;k<c.haze;k++)if(b[k]===b[k+1])return true;return false}))continue;
       for(let e=0;e<empty;e++)bs.push([]);
-      if(solvable(bs))return bs}}
+      if(!solvable(bs))continue;
+      found++;const score=c.pick?trapShare(bs):0;if(score>bestScore){bestScore=score;best=bs}}
+    if(best)return best}
   return null}
 
 /* Save */
