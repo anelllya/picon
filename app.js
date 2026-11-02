@@ -66,7 +66,7 @@ function cfg(level){
   return{sands:all.slice(0,8+Math.floor(r()*3)).join(""),empty:2,haze:[1,2,3,3][Math.floor(r()*4)]};
 }
 const STORY={
-  1:{t:"El Hierro",x:"Tap a bottle, then tap where it pours. Sand only lands on the same sand or in an empty bottle. Fill every bottle with one sand and it gets a cork.",s:"plg"},
+  1:{t:"El Hierro",x:"The westernmost island, where the trip starts. Three sands to begin with:",s:"plg"},
   11:{t:"New sand",s:"r"},
   16:{t:"La Palma",x:"Tall bottles from here on. Tajogaite's ash reached every corner of the island, so now it's in your sand too.",s:"a"},
   30:{key:"erupt",t:"Tajogaite",lava:1,x:"19 September 2021. The ridge above Cabeza de Vaca split open and erupted for 85 days. Last level of La Palma, and the calima is thick."},
@@ -87,7 +87,7 @@ const STORY={
 };
 
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const TILES={};
+const TILES={},TILEC={};
 (function makeTiles(){
   const S=96;
   const wrap=(fn)=>{for(const dx of[-S,0,S])for(const dy of[-S,0,S])fn(dx,dy)};
@@ -146,7 +146,7 @@ const TILES={};
       for(let i=0;i<22;i++){const cx=r()*S,cy=r()*S,rad=14+r()*22,col=r()<.5?"rgba(240,215,170,.35)":"rgba(140,105,65,.3)";
         wrap((dx,dy)=>{const g=x.createRadialGradient(cx+dx,cy+dy,0,cx+dx,cy+dy,rad);g.addColorStop(0,col);g.addColorStop(1,"rgba(0,0,0,0)");x.fillStyle=g;x.fillRect(cx+dx-rad,cy+dy-rad,rad*2,rad*2)})}
     }
-    TILES[id]=c.toDataURL();
+    TILES[id]=c.toDataURL();TILEC[id]=c;
   }
 })();
 
@@ -154,20 +154,26 @@ const TILES={};
 function runLen(b){let n=0;const t=b[b.length-1];for(let i=b.length-1;i>=0&&b[i]===t;i--)n++;return n}
 function corked(b){return b.length===CAP&&b.every(c=>c===b[0])}
 function solved(bs){return bs.every(b=>!b.length||corked(b))}
-function solvable(start){
-  const seen=new Set();let nodes=0;
-  const key=bs=>bs.map(b=>b.join("")).sort().join("|");
-  function dfs(bs){
+/* Pours that change something: hazy layers stop a pour, and tipping a single-sand bottle into an empty one is skipped */
+function movesOf(bs,hid){const out=[];
+  for(let i=0;i<bs.length;i++){const a=bs[i];if(!a.length||corked(a))continue;const top=a[a.length-1],run=runLen(a),vis=Math.min(run,a.length-hid[i]);
+    for(let j=0;j<bs.length;j++){if(i===j)continue;const b=bs[j];if(b.length>=CAP)continue;
+      if(b.length&&b[b.length-1]!==top)continue;if(!b.length&&run===a.length)continue;
+      out.push([i,j,Math.min(vis,CAP-b.length)])}}
+  return out}
+/* true, false, or null when it ran out of nodes before deciding */
+function solvable(start,hid0=start.map(()=>0),cap=150000){
+  const seen=new Set();let nodes=0,over=false;
+  const key=(bs,hid)=>bs.map((b,i)=>hid[i]+b.join("")).sort().join("|");
+  function dfs(bs,hid){
     if(solved(bs))return true;
-    if(++nodes>150000)return false;
-    const k=key(bs);if(seen.has(k))return false;seen.add(k);
-    for(let i=0;i<bs.length;i++){const a=bs[i];if(!a.length||corked(a))continue;const top=a[a.length-1],run=runLen(a);
-      for(let j=0;j<bs.length;j++){if(i===j)continue;const b=bs[j];if(b.length>=CAP)continue;
-        if(b.length&&b[b.length-1]!==top)continue;if(!b.length&&run===a.length)continue;
-        const n=Math.min(run,CAP-b.length);const nb=bs.map(x=>x.slice());for(let q=0;q<n;q++)nb[j].push(nb[i].pop());
-        if(dfs(nb))return true}}
+    if(++nodes>cap){over=true;return false}
+    const k=key(bs,hid);if(seen.has(k))return false;seen.add(k);
+    for(const[i,j,n]of movesOf(bs,hid)){const nb=bs.map(x=>x.slice()),nh=hid.slice();for(let q=0;q<n;q++)nb[j].push(nb[i].pop());
+      nh[i]=Math.min(nh[i],Math.max(0,nb[i].length-1));
+      if(dfs(nb,nh))return true}
     return false}
-  return dfs(start)}
+  return dfs(start,hid0)?true:over?null:false}
 function generate(level){
   const c=cfg(level);const r=rng(level*1009+17);
   for(let empty=c.empty;empty<=3;empty++){
@@ -188,6 +194,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.level)
 let save=load();
 save.helps.alisio=save.helps.alisio||0;
 if(!save.r1){save.r1=1;if(save.earned.includes(10))save.helps.guagua++}
+if(save.done>0&&!save.seen.includes("onboard"))save.seen.push("onboard");
 persist();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 
@@ -238,14 +245,15 @@ function renderHome(){
     <div><div class="label">Souvenir shelf</div><div class="shelf">${shelf}</div></div>
     <button class="cta" id="go" ${next?"":"disabled"}>Play level ${save.level}</button>
     ${chapters}
-    <button class="reset" id="wipe">Reset progress</button>`;
+    <div class="links"><button class="reset" id="how">How to play</button><button class="reset" id="wipe">Reset progress</button></div>`;
   $("go").onclick=()=>startLevel(save.level);
   h.querySelectorAll(".dot").forEach(d=>d.onclick=()=>startLevel(+d.dataset.l));
+  $("how").onclick=()=>onboarding();
   $("wipe").onclick=()=>confirmWipe();
 }
 function confirmWipe(){
   modal(`<h2>Reset progress?</h2><p>Your levels, souvenirs and saved helps will be cleared.</p><div class="row"><button class="ghost" id="no">Keep it</button><button class="cta" id="yes" style="flex:1">Reset</button></div>`);
-  $("no").onclick=closeModal;$("yes").onclick=()=>{save=fresh();persist();closeModal();renderHome()};
+  $("no").onclick=closeModal;$("yes").onclick=()=>{save=fresh();persist();closeModal();renderHome();intro(()=>onboarding())};
 }
 
 /* Game state */
@@ -253,7 +261,7 @@ let cur=null,els=[];
 function startLevel(level){
   const bs=generate(level),c=cfg(level),ch=chapterOf(level);
   const hidden=bs.map(b=>b.length?Math.min(c.haze,b.length-1):0);
-  cur={level,ch,initial:bs.map(b=>b.slice()),initialHidden:hidden.slice(),bottles:bs.map(b=>b.slice()),hidden,hist:[],undos:3,sel:-1,busy:false,returning:false,pending:null,guagua:false,alisio:false,corkedSet:new Set()};
+  cur={level,ch,initial:bs.map(b=>b.slice()),initialHidden:hidden.slice(),bottles:bs.map(b=>b.slice()),hidden,hist:[],undos:3,sel:-1,busy:false,returning:false,pending:null,guagua:false,alisio:false,corkedSet:new Set(),stuck:null};
   recomputeCorks();
   const th=themeOf(level);cur.th=th;
   document.body.className=th;
@@ -297,9 +305,12 @@ function render(newCorks=new Set(),cleared={}){
     board.appendChild(el);els.push(el)});
   $("undoN").textContent=cur.undos;
   $("bUndo").disabled=!cur.undos||!cur.hist.length;
-  $("bRestart").classList.toggle("pulse",!cur.undos&&cur.hist.length>0&&!solved(cur.bottles));
+  $("bRestart").classList.toggle("pulse",(!cur.undos&&cur.hist.length>0&&!solved(cur.bottles))||(!!cur.stuck&&!cur.stuck.back));
+  $("bUndo").classList.toggle("pulse",!!cur.stuck&&cur.stuck.back>0);
+  board.classList.toggle("stuck",!!cur.stuck);
   const H=save.helps;$("helpN").textContent=H.barranco+H.guagua+H.alisio;
-  $("mode").textContent=cur.alisio?"Alisio: tap a hazy bottle":cur.guagua?"Guagua on: next pour moves one layer":"";
+  $("mode").textContent=cur.alisio?"Alisio: tap a hazy bottle":cur.guagua?"Guagua on: next pour moves one layer":cur.stuck?(cur.stuck.back?"Dead end. Undo to get out":"Dead end. Restart the level"):"";
+  $("mode").classList.toggle("warn",!cur.alisio&&!cur.guagua&&!!cur.stuck);
 }
 function tap(i){
   if(cur.busy)return;const b=cur.bottles[i];
@@ -313,7 +324,7 @@ function tap(i){
 }
 function shake(i){const e=els[i];e.classList.remove("shake");void e.offsetWidth;e.classList.add("shake")}
 async function pour(i,j){
-  cur.busy=true;
+  cur.busy=true;cur.stuck=null;
   const a=cur.bottles[i],b=cur.bottles[j],top=a[a.length-1];
   let n=Math.min(runLen(a),a.length-cur.hidden[i],CAP-b.length);let usedG=false;
   if(cur.guagua&&n>1){n=1;cur.guagua=false;usedG=true}
@@ -347,7 +358,8 @@ async function pour(i,j){
   render(newC,revealed.length?{[i]:revealed}:{});
   if(done){setTimeout(win,T(450));return}
   if(cur.pending){const[p,q]=cur.pending;cur.pending=null;cur.sel=p;const A=cur.bottles[p],B=cur.bottles[q];
-    if(A.length&&!corked(A)&&B.length<CAP&&(!B.length||B[B.length-1]===A[A.length-1]))pour(p,q);else{cur.sel=-1;render()}}
+    if(A.length&&!corked(A)&&B.length<CAP&&(!B.length||B[B.length-1]===A[A.length-1])){pour(p,q);return}cur.sel=-1;render()}
+  checkSoon();
 }
 function recomputeCorks(){cur.corkedSet=new Set();cur.bottles.forEach((b,i)=>{if(corked(b))cur.corkedSet.add(i)})}
 
@@ -355,8 +367,14 @@ function recomputeCorks(){cur.corkedSet=new Set();cur.bottles.forEach((b,i)=>{if
 function refundActive(){if(!cur)return;if(cur.guagua){cur.guagua=false;save.helps.guagua++}if(cur.alisio){cur.alisio=false;save.helps.alisio++}persist()}
 const idle=()=>cur&&!cur.busy&&!cur.returning;
 $("bHome").onclick=()=>{if(!idle())return;refundActive();$("game").hidden=true;$("home").hidden=false;renderHome()};
-$("bRestart").onclick=()=>{if(!idle())return;refundActive();cur.bottles=cur.initial.map(b=>b.slice());cur.hidden=cur.initialHidden.slice();cur.hist=[];cur.undos=3;cur.sel=-1;recomputeCorks();render()};
-$("bUndo").onclick=()=>{if(!idle()||!cur.undos||!cur.hist.length)return;const h=cur.hist.pop();cur.bottles=h.b;cur.hidden=h.h.map((x,k)=>Math.min(x,cur.hidden[k]??x));if(h.g)cur.guagua=true;cur.undos--;cur.sel=-1;recomputeCorks();render()};
+function restart(){if(!idle())return;refundActive();cur.bottles=cur.initial.map(b=>b.slice());cur.hidden=cur.initialHidden.slice();cur.hist=[];cur.undos=3;cur.sel=-1;cur.stuck=null;recomputeCorks();render()}
+function undo(k=1){if(!idle()||cur.undos<k||cur.hist.length<k)return;
+  let h,g=0;for(let q=0;q<k;q++){h=cur.hist.pop();if(h.g)g++}
+  cur.bottles=h.b;cur.hidden=h.h.map((x,q)=>Math.min(x,cur.hidden[q]??x));
+  if(g){if(!cur.guagua){cur.guagua=true;g--}save.helps.guagua+=g;persist()}
+  cur.undos-=k;cur.sel=-1;cur.stuck=null;recomputeCorks();render();checkSoon()}
+$("bRestart").onclick=restart;
+$("bUndo").onclick=()=>undo(1);
 $("bHelp").onclick=()=>{if(!idle())return;helpCard()};
 
 const HELPS={
@@ -376,7 +394,35 @@ function helpCard(){
     if(k==="barranco"){cur.bottles.push([]);cur.hidden.push(0);cur.initial.push([]);cur.initialHidden.push(0);cur.hist.forEach(h=>{h.b.push([]);h.h.push(0)})}
     if(k==="guagua")cur.guagua=true;
     if(k==="alisio")cur.alisio=true;
-    closeModal();render()});
+    cur.stuck=null;closeModal();render();checkSoon()});
+}
+
+/* Dead ends: after a pour, check the board can still be sorted. If not, count how many undos get back to a board that can. */
+let stuckTimer=0;
+function checkSoon(){clearTimeout(stuckTimer);const c=cur;
+  stuckTimer=setTimeout(()=>{if(cur!==c||!idle()||solved(c.bottles))return;const st=deadEnd(c);if(!st)return;
+    c.stuck=st;render();if(!$("modal").innerHTML)deadCard(st)},T(300))}
+function deadEnd(c){
+  const moves=movesOf(c.bottles,c.hidden).length>0;
+  if(moves&&solvable(c.bottles,c.hidden,40000)!==false)return null;
+  let back=0;
+  for(let k=1;k<=Math.min(c.undos,c.hist.length);k++){const h=c.hist[c.hist.length-k];
+    if(solvable(h.b,h.h.map((x,q)=>Math.min(x,c.hidden[q]??x)),40000)!==false){back=k;break}}
+  return{moves,back};
+}
+function deadCard(st){
+  const H=save.helps,helps=H.barranco+H.guagua,n=st.back;
+  const why=st.moves?"There are still pours to make, but none of them lead to a sorted set.":"There's no pour left to make. Every top sand has nowhere to go.";
+  const fix=n?`Your last ${n===1?"pour":n+" pours"} led here. Undo ${n===1?"it":"them"} and you're back on track.`:cur.hist.length?"Undoing won't get you out of this one. Start the level over.":"Start the level over.";
+  modal(`<div class="dead-head"><span class="dead-ico" aria-hidden="true"></span><div class="label">Sin salida</div></div>
+    <h2 class="lava">Dead end</h2><p>${why}</p><p style="color:var(--fg)">${fix}</p>
+    <div class="pick">${n?`<button class="cta" id="dUndo">Undo ${n===1?"last pour":n+" pours"}</button>`:""}<button class="${n?"ghost":"cta"}" id="dRe">Restart level</button>
+    ${helps?`<button class="ghost" id="dHelp">Use a help (${helps})</button>`:""}</div>
+    <button class="reset" id="dLook" style="align-self:center">Look at the board</button>`,"dead");
+  if(n)$("dUndo").onclick=()=>{closeModal();undo(n)};
+  $("dRe").onclick=()=>{closeModal();restart()};
+  if(helps)$("dHelp").onclick=()=>helpCard();
+  $("dLook").onclick=closeModal;
 }
 
 /* Win */
@@ -399,7 +445,180 @@ function win(){
   };
 }
 
-function modal(html){$("modal").innerHTML=`<div class="scrim"><div class="card" role="dialog" aria-modal="true">${html}</div></div>`}
+function modal(html,cls=""){$("modal").innerHTML=`<div class="scrim"><div class="card ${cls}" role="dialog" aria-modal="true">${html}</div></div>`}
 function closeModal(){$("modal").innerHTML=""}
 
+/* Intro: a layer of picón pours off the screen west to east, and each island lights up as it's uncovered */
+const GOLD="#e6b45a",TOUR=2700,TSTEP=420,TDUR=560,TEND=TOUR+7*TSTEP+TDUR;
+/* Coastlines as [lon,lat], traced clockwise from each island's westernmost point */
+const ISLES=[
+  // El Hierro: three ridges, with the El Golfo bay biting into the north-west
+  [[-18.161,27.712],[-18.148,27.738],[-18.128,27.762],[-18.103,27.759],[-18.075,27.757],[-18.05,27.77],[-18.027,27.784],[-18.005,27.8],[-17.988,27.818],[-17.972,27.838],[-17.955,27.843],[-17.935,27.838],[-17.915,27.83],[-17.895,27.825],[-17.884,27.812],[-17.888,27.79],[-17.9,27.775],[-17.908,27.757],[-17.925,27.74],[-17.944,27.725],[-17.952,27.705],[-17.962,27.682],[-17.972,27.66],[-17.983,27.638],[-17.997,27.643],[-18.012,27.66],[-18.035,27.675],[-18.06,27.686],[-18.09,27.693],[-18.12,27.697],[-18.145,27.701]],
+  // La Palma: wide in the north around the Caldera, narrowing to Fuencaliente
+  [[-18.006,28.75],[-17.995,28.783],[-17.975,28.81],[-17.95,28.833],[-17.92,28.848],[-17.885,28.856],[-17.85,28.851],[-17.815,28.845],[-17.782,28.836],[-17.765,28.81],[-17.758,28.78],[-17.745,28.75],[-17.73,28.72],[-17.745,28.69],[-17.762,28.665],[-17.758,28.635],[-17.762,28.605],[-17.778,28.575],[-17.8,28.54],[-17.82,28.505],[-17.835,28.475],[-17.843,28.455],[-17.855,28.47],[-17.87,28.5],[-17.882,28.535],[-17.89,28.57],[-17.91,28.6],[-17.935,28.63],[-17.955,28.655],[-17.975,28.685],[-17.99,28.715]],
+  // La Gomera: round, with ravines notching the coast
+  [[-17.348,28.115],[-17.335,28.15],[-17.31,28.178],[-17.28,28.195],[-17.245,28.205],[-17.21,28.198],[-17.18,28.188],[-17.15,28.17],[-17.125,28.15],[-17.105,28.12],[-17.098,28.09],[-17.11,28.065],[-17.135,28.045],[-17.165,28.03],[-17.2,28.022],[-17.235,28.025],[-17.27,28.04],[-17.3,28.06],[-17.325,28.08],[-17.34,28.095]],
+  // Tenerife: a triangle from Teno to Rasca, with the Anaga peninsula pointing north-east
+  [[-16.923,28.345],[-16.9,28.365],[-16.86,28.375],[-16.82,28.38],[-16.78,28.375],[-16.74,28.375],[-16.7,28.385],[-16.66,28.395],[-16.62,28.405],[-16.58,28.415],[-16.54,28.42],[-16.5,28.445],[-16.46,28.48],[-16.42,28.505],[-16.375,28.53],[-16.335,28.56],[-16.29,28.565],[-16.245,28.565],[-16.2,28.57],[-16.155,28.585],[-16.125,28.575],[-16.14,28.552],[-16.18,28.535],[-16.22,28.505],[-16.255,28.47],[-16.29,28.44],[-16.33,28.4],[-16.37,28.36],[-16.395,28.32],[-16.415,28.28],[-16.435,28.24],[-16.465,28.2],[-16.5,28.15],[-16.525,28.105],[-16.545,28.065],[-16.565,28.04],[-16.6,28.025],[-16.64,28.01],[-16.675,28.0],[-16.705,28.01],[-16.725,28.045],[-16.75,28.075],[-16.785,28.1],[-16.81,28.135],[-16.83,28.175],[-16.84,28.215],[-16.85,28.255],[-16.87,28.29],[-16.9,28.315]],
+  // Gran Canaria: round, with La Isleta hanging off the north-east
+  [[-15.835,27.96],[-15.825,28.0],[-15.8,28.035],[-15.77,28.065],[-15.73,28.095],[-15.7,28.125],[-15.67,28.148],[-15.63,28.155],[-15.59,28.155],[-15.55,28.148],[-15.51,28.14],[-15.47,28.13],[-15.445,28.14],[-15.44,28.17],[-15.425,28.182],[-15.405,28.172],[-15.41,28.15],[-15.425,28.125],[-15.42,28.095],[-15.405,28.06],[-15.385,28.02],[-15.375,27.98],[-15.378,27.94],[-15.385,27.9],[-15.39,27.86],[-15.41,27.83],[-15.44,27.805],[-15.48,27.785],[-15.52,27.765],[-15.56,27.75],[-15.595,27.742],[-15.63,27.755],[-15.665,27.77],[-15.7,27.79],[-15.735,27.81],[-15.765,27.835],[-15.79,27.865],[-15.815,27.9],[-15.83,27.93]],
+  // Fuerteventura: long and thin, with the Jandía peninsula on a narrow isthmus
+  [[-14.508,28.07],[-14.48,28.09],[-14.44,28.105],[-14.4,28.115],[-14.36,28.13],[-14.32,28.15],[-14.28,28.175],[-14.245,28.2],[-14.22,28.225],[-14.195,28.26],[-14.18,28.3],[-14.17,28.34],[-14.16,28.385],[-14.145,28.43],[-14.12,28.475],[-14.09,28.52],[-14.06,28.565],[-14.035,28.61],[-14.02,28.655],[-14.01,28.7],[-13.99,28.735],[-13.955,28.748],[-13.915,28.75],[-13.875,28.748],[-13.84,28.738],[-13.825,28.71],[-13.825,28.67],[-13.83,28.63],[-13.84,28.59],[-13.855,28.55],[-13.86,28.51],[-13.855,28.47],[-13.86,28.43],[-13.87,28.39],[-13.89,28.35],[-13.92,28.31],[-13.955,28.27],[-13.99,28.235],[-14.03,28.205],[-14.08,28.19],[-14.13,28.175],[-14.17,28.16],[-14.21,28.14],[-14.25,28.11],[-14.29,28.085],[-14.33,28.06],[-14.37,28.045],[-14.41,28.04],[-14.45,28.045],[-14.485,28.055]],
+  // Lanzarote: a long ridge from Papagayo up to the Famara cliffs and Órzola
+  [[-13.875,28.86],[-13.86,28.89],[-13.84,28.92],[-13.83,28.955],[-13.815,28.99],[-13.79,29.02],[-13.76,29.045],[-13.72,29.06],[-13.68,29.07],[-13.645,29.085],[-13.61,29.1],[-13.575,29.125],[-13.545,29.15],[-13.52,29.18],[-13.495,29.205],[-13.465,29.22],[-13.44,29.21],[-13.43,29.18],[-13.43,29.15],[-13.44,29.115],[-13.455,29.08],[-13.475,29.04],[-13.5,29.005],[-13.53,28.98],[-13.56,28.96],[-13.6,28.945],[-13.64,28.93],[-13.68,28.915],[-13.72,28.9],[-13.76,28.88],[-13.8,28.86],[-13.84,28.85]],
+  // La Graciosa: across the El Río strait from Lanzarote's northern tip
+  [[-13.545,29.255],[-13.535,29.272],[-13.515,29.288],[-13.495,29.292],[-13.478,29.28],[-13.472,29.262],[-13.482,29.243],[-13.5,29.232],[-13.52,29.232],[-13.538,29.242]]
+];
+function intro(next){
+  const el=document.createElement("div");el.className="intro";
+  el.innerHTML=`<canvas></canvas><div class="intro-t"><h1 class="logo">Picón</h1><p class="tag">Sort the sands of the islands, one bottle at a time.</p></div><div class="label intro-cap">Eight islands &middot; El Hierro to La Graciosa</div><div class="intro-hint">Tap to start</div>`;
+  document.body.appendChild(el);
+  const cv=el.querySelector("canvas"),x=cv.getContext("2d"),d=Math.min(2,devicePixelRatio||1),W=innerWidth,H=innerHeight,R=Math.random;
+  cv.width=W*d;cv.height=H*d;
+  const rel=(px,py)=>RM?-3000:300+px/W*1500+py/H*450;
+
+  // Islands, projected and fitted under the logo
+  const K=Math.cos(28.3*Math.PI/180),raw=ISLES.map(pts=>pts.map(([lo,la])=>[(lo+18.2)*K,29.35-la]));
+  const all=raw.flat(),mnx=Math.min(...all.map(p=>p[0])),mxx=Math.max(...all.map(p=>p[0])),mny=Math.min(...all.map(p=>p[1])),mxy=Math.max(...all.map(p=>p[1]));
+  // Title, map and caption share the height evenly, with room kept at the bottom for the hint
+  const head=el.querySelector(".intro-t"),headH=head.offsetHeight,capH=16,hintR=64;
+  const sc=Math.min(Math.min(W-32,620)/(mxx-mnx),H*.34/(mxy-mny)),mapH=(mxy-mny)*sc;
+  const gap=Math.max(32,(H-hintR-headH-mapH-capH)/4),top0=gap+headH+gap;
+  head.style.top=gap+"px";
+  const ox=(W-(mxx-mnx)*sc)/2-mnx*sc,oy=top0-mny*sc;
+  // Each island gets its own sprite, gold and speckled like the Rubik Dirt logo, so it can zoom on its own
+  const isles=raw.map((ring,i)=>{const pts=ring.map(([a,b])=>[ox+a*sc,oy+b*sc]),p=new Path2D();
+    pts.forEach(([a,b],k)=>k?p.lineTo(a,b):p.moveTo(a,b));p.closePath();
+    const xs=pts.map(q=>q[0]),ys=pts.map(q=>q[1]),bx=Math.min(...xs)-3,by=Math.min(...ys)-3,bw=Math.max(...xs)+3-bx,bh=Math.max(...ys)+3-by;
+    const c=document.createElement("canvas");c.width=Math.ceil(bw*d);c.height=Math.ceil(bh*d);const l=c.getContext("2d");l.setTransform(d,0,0,d,-bx*d,-by*d);
+    l.fillStyle=GOLD;l.fill(p);l.globalCompositeOperation="destination-out";
+    for(let k=0,N=bw*bh/9;k<N;k++){const sx=bx+R()*bw,sy=by+R()*bh,rad=R()<.9?.25+R()*.55:.8+R()*.9,v=4+Math.floor(R()*3),rot=R()*6;
+      l.beginPath();for(let q=0;q<v;q++){const a=rot+q/v*6.283,dd=rad*(.6+R()*.6);q?l.lineTo(sx+Math.cos(a)*dd,sy+Math.sin(a)*dd):l.moveTo(sx+Math.cos(a)*dd,sy+Math.sin(a)*dd)}l.fill()}
+    l.globalCompositeOperation="source-over";l.strokeStyle=GOLD;l.lineWidth=1.4;l.lineJoin="round";l.stroke(p);
+    const cx=bx+bw/2,cy=by+bh/2;
+    return{p,c,bx,by,bw,bh,cx,cy,t:rel(cx,cy)+380,amp:Math.max(.5,Math.min(2.4,64/Math.max(bw,bh)-1)),name:ISLAND_CH[i].name,z:TOUR+i*TSTEP}});
+  el.querySelector(".intro-cap").style.top=(top0+mapH+gap)+"px";
+
+  // The world under the picón: night sea
+  const world=document.createElement("canvas");world.width=W*d;world.height=H*d;const w=world.getContext("2d");w.setTransform(d,0,0,d,0,0);
+  w.fillStyle="#06151a";w.fillRect(0,0,W,H);
+  w.save();w.translate(W/2,0);w.scale(2*W/H,1);const sea=w.createRadialGradient(0,0,0,0,0,H*.6);sea.addColorStop(0,"#0e2f37");sea.addColorStop(.7,"#06151a");w.fillStyle=sea;w.fillRect(-H,0,2*H,H);w.restore();
+
+  // The picón cover: a grid of stones that each drop when the sweep reaches them
+  const g=Math.max(9,Math.round(Math.sqrt(W*H/2400))),PAL=["#2e2724","#3b322d","#26201d","#443a33"],spr=[],grains=[];
+  for(let k=0;k<6;k++){const c=document.createElement("canvas"),z=Math.ceil(g*1.5*d);c.width=c.height=z;const s=c.getContext("2d"),rx=z*(.36+R()*.08),ry=rx*(.75+R()*.25);
+    s.translate(z/2,z/2);s.fillStyle=PAL[k%4];s.beginPath();s.ellipse(0,0,rx,ry,0,0,7);s.fill();
+    s.fillStyle="rgba(255,255,255,.1)";s.beginPath();s.ellipse(-rx*.3,-ry*.35,rx*.45,ry*.3,0,0,7);s.fill();
+    s.fillStyle="rgba(0,0,0,.35)";for(let q=0;q<3;q++){s.beginPath();s.arc((q-1)*rx*.4,ry*.2,Math.max(1,z*.03),0,7);s.fill()}
+    spr.push(c)}
+  const cover=document.createElement("canvas");cover.width=W*d;cover.height=H*d;const cc=cover.getContext("2d");
+  if(!RM){
+    for(let gy=0;gy<=H/g+1;gy++)for(let gx=0;gx<=W/g+1;gx++){const px=gx*g+(R()-.5)*g*.4,py=gy*g+(R()-.5)*g*.4;
+      grains.push({x:px,y:py,r:R()*6.3,s:Math.floor(R()*6),t:rel(px,py)+R()*320})}
+    grains.sort((a,b)=>a.t-b.t);
+    cc.setTransform(d,0,0,d,0,0);cc.fillStyle="#0c0a09";cc.fillRect(0,0,W,H);
+    for(const q of grains){const co=Math.cos(q.r)*d,si=Math.sin(q.r)*d;cc.setTransform(co,si,-si,co,q.x*d,q.y*d);cc.drawImage(spr[q.s],-g*.75,-g*.75,g*1.5,g*1.5)}
+    cc.setTransform(d,0,0,d,0,0);cc.globalCompositeOperation="destination-out"}
+
+  const t0=performance.now();let last=t0,fi=0,falling=[],ended=false,capAt=-1;
+  const txt=el.querySelector(".intro-t"),cap=el.querySelector(".intro-cap"),hint=el.querySelector(".intro-hint");
+  function frame(now){if(ended)return;const t=now-t0,dt=Math.min(40,now-last);last=now;
+    if(fi<grains.length&&grains[fi].t<=t){cc.beginPath();
+      while(fi<grains.length&&grains[fi].t<=t){const q=grains[fi++];cc.moveTo(q.x+g*.8,q.y);cc.arc(q.x,q.y,g*.8,0,7);
+        q.vx=(R()-.5)*.05;q.vy=R()*.04;q.vr=(R()-.5)*.012;falling.push(q)}
+      cc.fill()}
+    x.setTransform(1,0,0,1,0,0);x.drawImage(world,0,0);
+    // Voyage tour: each island in level order swells up around its centre, shows its name, and settles back
+    const zp=I=>RM?0:Math.max(0,Math.min(1,(t-I.z)/TDUR)),order=isles.slice().sort((A,B)=>(zp(A)%1>0)-(zp(B)%1>0));
+    for(const I of order){const e=Math.sin(Math.PI*zp(I)),s=1+I.amp*e*e*(3-2*e),lit=Math.max(0,Math.min(1,(t-I.t)/500));
+      x.setTransform(d*s,0,0,d*s,d*I.cx*(1-s),d*I.cy*(1-s));
+      if(e>0){x.save();x.shadowColor="rgba(0,0,0,.6)";x.shadowBlur=18;x.shadowOffsetY=6;x.drawImage(I.c,I.bx,I.by,I.bw,I.bh);x.restore()}
+      else x.drawImage(I.c,I.bx,I.by,I.bw,I.bh);
+      if(lit){x.save();x.globalAlpha=lit*(.8-.4*e);x.shadowColor=GOLD;x.shadowBlur=12;x.strokeStyle=GOLD;x.lineWidth=1.4/s;x.lineJoin="round";x.stroke(I.p);x.restore()}}
+    const on=RM?-1:t>TEND?isles.length:isles.findIndex(I=>zp(I)>0&&zp(I)<1);
+    if(on>=0&&on!==capAt){capAt=on;cap.innerHTML=on<isles.length?`${on+1} of ${isles.length} &middot; ${isles[on].name}`:"Eight islands &middot; El Hierro to La Graciosa";cap.classList.add("on")}
+    if(!RM){x.setTransform(1,0,0,1,0,0);x.drawImage(cover,0,0)}
+    let n=0;for(const q of falling){q.vy+=.0022*dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.r+=q.vr*dt;if(q.y>H+g)continue;falling[n++]=q;
+      const co=Math.cos(q.r)*d,si=Math.sin(q.r)*d;x.setTransform(co,si,-si,co,q.x*d,q.y*d);x.drawImage(spr[q.s],-g*.75,-g*.75,g*1.5,g*1.5)}
+    falling.length=n;
+    if(t>T(1900))txt.classList.add("on");
+    if(RM&&t>1)cap.classList.add("on");
+    if(t>T(3000))hint.classList.add("on");
+    if(t>(RM?2600:TEND+700)){end();return}
+    requestAnimationFrame(frame)}
+  function end(){if(ended)return;ended=true;removeEventListener("keydown",end);el.classList.add("out");setTimeout(()=>el.remove(),T(520));next()}
+  el.addEventListener("pointerdown",end);addEventListener("keydown",end);
+  requestAnimationFrame(frame);
+}
+
+/* Onboarding: three cards, each with a small demo on loop */
+let onbTok=0;
+const wait=ms=>new Promise(r=>setTimeout(r,T(ms)));
+function demoBottle(b,hid=0){const el=document.createElement("div");el.className="bottle";
+  el.innerHTML=`<div class="neck"></div><div class="bbody"></div>`;paint(el.querySelector(".bbody"),b,hid);return el}
+function tapAt(stage,el){const g=stage.getBoundingClientRect(),r=el.getBoundingClientRect(),t=document.createElement("i");t.className="tapr";
+  t.style.left=(r.left+r.width/2-g.left)+"px";t.style.top=(r.top+r.height*.55-g.top)+"px";stage.appendChild(t);setTimeout(()=>t.remove(),700)}
+async function demoLoop(stage,alive,A0,B0,hid0){
+  while(alive()){
+    const A=A0.slice(),B=B0.slice();let hA=hid0;
+    stage.innerHTML="";const ea=demoBottle(A,hA),eb=demoBottle(B);stage.append(ea,eb);
+    await wait(900);if(!alive())return;
+    tapAt(stage,ea);ea.classList.add("sel");
+    await wait(750);if(!alive())return;
+    tapAt(stage,eb);await wait(150);if(!alive())return;
+    const gR=stage.getBoundingClientRect(),sR=ea.getBoundingClientRect(),dR=eb.getBoundingClientRect(),bb=eb.querySelector(".bbody").getBoundingClientRect();
+    const dx=dR.left+dR.width/2-(sR.left+sR.width/2),dy=dR.top-30-sR.top,ang=dx>=0?100:-100,tilt=`translate(${dx}px,${dy}px) rotate(${ang}deg)`;
+    ea.style.transformOrigin="50% 0";ea.style.transition="none";ea.style.zIndex=5;
+    await ea.animate([{transform:"translateY(-14px)"},{transform:tilt}],{duration:T(260),easing:"cubic-bezier(.3,.7,.2,1)",fill:"forwards"}).finished;
+    const top=A[A.length-1],n=Math.min(runLen(A),A.length-hA,CAP-B.length),from=B.length;
+    const st=document.createElement("div");st.className="stream";st.style.backgroundColor=SANDS[top].base;st.style.backgroundImage=`url(${TILES[top]})`;
+    st.style.left=(dR.left+dR.width/2-gR.left-3)+"px";st.style.top=(dR.top-26-gR.top)+"px";
+    st.style.height=Math.max(10,bb.bottom-2-from*(bb.height-4)/CAP-(dR.top-26))+"px";stage.appendChild(st);
+    await st.animate([{transform:"scaleY(0)"},{transform:"scaleY(1)"}],{duration:T(90),easing:"ease-in",fill:"forwards"}).finished;
+    for(let q=0;q<n;q++)B.push(A.pop());
+    const rev=[];if(hA>Math.max(0,A.length-1)){hA=Math.max(0,A.length-1);if(A.length)rev.push(A.length-1)}
+    paint(ea.querySelector(".bbody"),A,hA);
+    await Promise.all(paint(eb.querySelector(".bbody"),B,0,from,T(160)).map(a=>a.finished));
+    st.remove();
+    await ea.animate([{transform:tilt},{transform:"translateY(0)"}],{duration:T(260),easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}).finished;
+    ea.classList.remove("sel");ea.getAnimations().forEach(a=>a.cancel());
+    if(rev.length)paint(ea.querySelector(".bbody"),A,hA,-1,0,rev);
+    if(corked(B)){const c=document.createElement("div");c.className="cork";eb.prepend(c);eb.classList.add("pop")}
+    await wait(2300);
+  }
+}
+const ONB=[
+  {t:"Pour",x:"Tap a bottle, then tap where it pours. Sand only lands on the same sand or in an empty bottle. Fill a bottle with a single sand and it gets a cork. Cork them all to finish the level.",
+    demo:(s,alive)=>demoLoop(s,alive,["l","g","p","p"],["p","p"],0)},
+  {t:"Calima",x:"Dust from the Sahara hides the lower layers. A hazy layer shows its sand once it reaches the top. It rolls in on La Palma and gets thicker the further east you sail.",
+    demo:(s,alive)=>demoLoop(s,alive,["l","g","p"],["p","p","p"],2)},
+  {t:"Helps",x:"Every level gives you 3 undos. Every 10 levels you also earn a help to keep for a tight spot.",
+    demo:s=>{const S=SHAPES.hierro,mini=b=>`<div class="mini" style="--nr:${S.nr};--br:${S.br}"><div class="mn"></div><div class="mb">${b}</div></div>`,
+      band=t=>`<i style="flex:none;height:25%;background-image:url(${TILES[t]})"></i>`;
+      const rows=[["<b class=\"undo\">&#8630;</b>","Undo &times;3","Takes back your last pour. Refills on every level."],
+        [mini(""),HELPS.barranco.name,HELPS.barranco.earn],
+        [mini(band("g")),HELPS.guagua.name,HELPS.guagua.earn],
+        [mini(band("haze")+band("haze")+band("g")),HELPS.alisio.name,HELPS.alisio.earn]];
+      s.classList.add("list");
+      s.innerHTML=rows.map(([i,n,d])=>`<div class="sand"><div class="ico">${i}</div><div><strong>${n}</strong><small>${d}</small></div></div>`).join("")}}
+];
+function onboarding(){
+  const el=document.createElement("div");el.className="onb";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","How to play");
+  document.body.appendChild(el);let step=0;
+  function show(){const tok=++onbTok,s=ONB[step],last=step===ONB.length-1;
+    el.innerHTML=`<div class="onb-in"><button class="onb-skip" id="oSkip" ${last?"hidden":""}>Skip</button>
+      <div class="demo" id="demo"></div>
+      <div class="onb-step"><div class="label">${step+1} of ${ONB.length}</div><h2>${s.t}</h2><p>${s.x}</p></div>
+      <div class="pips">${ONB.map((_,i)=>`<i class="${i<=step?"on":""}"></i>`).join("")}</div>
+      <div class="row">${step?'<button class="ghost" id="oBack">Back</button>':""}<button class="cta" id="oNext" style="flex:2">${last?"Start sorting":"Next"}</button></div></div>`;
+    s.demo($("demo"),()=>tok===onbTok&&el.isConnected);
+    $("oSkip").onclick=close;$("oNext").onclick=()=>{if(last)close();else{step++;show()}};
+    if(step)$("oBack").onclick=()=>{step--;show()};
+    $("oNext").focus({preventScroll:true})}
+  function close(){onbTok++;if(!save.seen.includes("onboard")){save.seen.push("onboard");persist()}
+    el.classList.add("out");setTimeout(()=>el.remove(),T(320))}
+  show();
+}
+
 renderHome();
+intro(()=>{if(!save.seen.includes("onboard"))onboarding()});

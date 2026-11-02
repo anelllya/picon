@@ -110,4 +110,51 @@ details.chapter .dots{margin-top:12px}
 .opt:disabled{opacity:.4;cursor:default}
 .row{display:flex;gap:10px}
 .ghost{flex:1;padding:14px;border-radius:14px;border:1px solid var(--line);color:var(--muted);font-weight:600}
+.links{display:flex;gap:18px}
+
+/* Dead end */
+.card.dead{border-color:rgba(255,106,43,.5);box-shadow:0 -12px 48px rgba(255,106,43,.14)}
+.dead-head{display:flex;align-items:center;gap:10px}
+.dead-head .label{color:var(--ember)}
+.dead-ico{width:28px;height:28px;border-radius:50%;border:2px solid var(--ember);position:relative;animation:pulse-e 1.6s ease-in-out infinite}
+.dead-ico::before{content:"";position:absolute;left:50%;top:50%;width:14px;height:2.5px;border-radius:2px;background:var(--ember);translate:-50% -50%}
+@keyframes pulse-e{50%{box-shadow:0 0 0 6px rgba(255,106,43,.16)}}
+.board.stuck .bottle{filter:saturate(.45) brightness(.75);transition:filter .5s}
+.mode.warn{color:var(--ember)}
+
+/* Intro */
+.intro{position:fixed;inset:0;z-index:40;background:#06151a;cursor:pointer;transition:opacity .5s ease;overflow:hidden}
+.intro.out{opacity:0;pointer-events:none}
+.intro canvas{position:absolute;inset:0;width:100%;height:100%}
+.intro-t{position:absolute;left:0;right:0;top:max(11vh,calc(env(safe-area-inset-top,0px) + 40px));text-align:center;padding:0 16px;opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform 1s cubic-bezier(.2,.8,.2,1)}
+.intro-t .logo{margin:0;letter-spacing:.14em;text-shadow:0 4px 30px rgba(0,0,0,.6);transition:letter-spacing 1.4s cubic-bezier(.2,.8,.2,1)}
+.intro-t .tag{margin:10px auto 0}
+.intro-t.on{opacity:1;transform:none}
+.intro-t.on .logo{letter-spacing:.01em}
+.intro-cap{position:absolute;left:0;right:0;text-align:center;opacity:0;transition:opacity .4s ease}
+.intro-cap.on{opacity:1}
+.intro-hint{position:absolute;left:0;right:0;bottom:max(32px,calc(env(safe-area-inset-bottom,0px) + 20px));text-align:center;color:var(--muted);font-size:13px;opacity:0;transition:opacity .6s}
+.intro-hint.on{opacity:1;animation:breathe 2s ease-in-out .6s infinite}
+@keyframes breathe{50%{opacity:.4}}
+
+/* Onboarding */
+.onb{position:fixed;inset:0;z-index:35;display:flex;justify-content:center;overflow:auto;background:inherit;animation:fade .35s ease}
+.onb.out{opacity:0;transition:opacity .3s}
+@keyframes fade{from{opacity:0}}
+.onb-in{width:100%;max-width:440px;min-height:100%;display:flex;flex-direction:column;gap:18px;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.onb-skip{align-self:flex-end;color:var(--muted);font-size:13px;padding:8px 4px;min-height:34px}
+.onb-skip[hidden]{display:block!important;visibility:hidden}
+.demo{flex:1;min-height:250px;display:flex;align-items:center;justify-content:center;gap:34px;position:relative;padding-bottom:12px;--w:56px;--h:150px;--nr:.43;--nh:16px;--br:20px 20px 28px 28px}
+.demo.list{flex-direction:column;align-items:stretch;justify-content:center;gap:16px;padding-bottom:0}
+.demo .bottle{pointer-events:none}
+.ico{width:44px;height:56px;display:grid;place-items:center}
+.ico .undo{font-size:24px;font-weight:600;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--glass);display:grid;place-items:center;color:var(--fg)}
+.tapr{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:2px solid var(--fg);pointer-events:none;z-index:6;animation:tapr .65s ease-out forwards}
+@keyframes tapr{from{transform:scale(.35);opacity:.9}to{transform:scale(1.25);opacity:0}}
+.onb-step{display:flex;flex-direction:column;gap:10px;animation:up .3s ease}
+.onb-step h2{font-family:var(--display);font-weight:400;font-size:42px;line-height:1;margin:0;color:var(--gold)}
+.onb-step p{margin:0;color:var(--muted);line-height:1.5;font-size:15.5px}
+.pips{display:flex;gap:6px;justify-content:center}
+.pips i{width:22px;height:4px;border-radius:2px;background:var(--line);transition:background .3s}
+.pips i.on{background:var(--gold)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
