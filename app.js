@@ -44,22 +44,20 @@ const SHAPES={
 };
 const FX={palma:"ash",gomera:"mist",tenerife:"stars",canaria:"dust",fuerte:"wind",lanzarote:"heat",graciosa:"stars"};
 /* pick: generate that many solvable boards and keep the one where the most first pours are traps.
-   With two spare bottles almost nothing is a trap, so the early islands run on one. */
+   With two spare bottles almost nothing is a trap, so picked levels run on one. */
 function cfg(level){
-  if(level<=2)return{sands:"plg",empty:2,haze:0};
-  if(level<=5)return{sands:"plg",empty:1,haze:0,pick:8};
-  if(level<=8)return{sands:"plgl",empty:1,haze:0,pick:8};
-  if(level<=10)return{sands:"plgp",empty:1,haze:0,pick:8};
-  if(level<=14)return{sands:"plgr",empty:1,haze:0,pick:8};
-  if(level===15)return{sands:"plgrl",empty:1,haze:0,pick:8};
-  if(level<=18)return{sands:"plga",empty:1,haze:0,pick:8};
-  if(level===19)return{sands:"plga",empty:1,haze:1,pick:8};
-  if(level<=21)return{sands:"plgar",empty:1,haze:0,pick:8};
-  if(level===22||level===25||level===28)return{sands:"plgar",empty:1,haze:1,pick:8};
-  if(level===27||level===29)return{sands:"plgarl",empty:1,haze:0,pick:8};
-  if(level===30)return{sands:"plgarp",empty:1,haze:2,pick:8};
-  if(level<=30)return{sands:"plgarp",empty:1,haze:0,pick:8};
-  if(level<=45)return{sands:level<=37?"plgarg":level<=44?"plgarpl":"plgarplg",empty:level===45?2:1,haze:level===45?2:level%3===0?1:0,pick:8};
+  if(level<=7)return{sands:"plg",empty:2,haze:0};
+  if(level<=10)return{sands:"plg",empty:1,haze:0};
+  if(level<=14)return{sands:"plgr",empty:2,haze:0};
+  if(level===15)return{sands:"plgr",empty:1,haze:0};
+  if(level<=18)return{sands:"plga",empty:2,haze:0};
+  if(level===19)return{sands:"plga",empty:2,haze:1};
+  if(level<=21)return{sands:"plgar",empty:2,haze:0};
+  if(level===22||level===25||level===28)return{sands:"plgar",empty:2,haze:1};
+  if(level===27||level===29)return{sands:"plgar",empty:1,haze:0};
+  if(level===30)return{sands:"plgar",empty:2,haze:2};
+  if(level<=30)return{sands:"plgar",empty:2,haze:0};
+  if(level<=45)return{sands:level<=37?"plgarg":level<=44?"plgarpl":"plgarplg",empty:2,haze:level===45?2:level%3===0?1:0};
   if(level<=60)return{sands:level<=50?"plgars":level<=55?"plgarsp":"plgarsgl",empty:1,haze:level%2===0?2:0,pick:8};
   if(level<=75)return{sands:level<=67?"plgarsc":"plgarscp",empty:2,haze:level===75?3:level%2===1?2:0};
   if(level<=90)return{sands:level===90?"plgarscjg":"plgarscj",empty:2,haze:level<=80?2:3};
