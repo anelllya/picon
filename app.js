@@ -399,22 +399,21 @@ function helpCard(){
     cur.stuck=null;closeModal();render();checkSoon()});
 }
 
-/* Dead ends: after a pour, check the board can still be sorted. If not, count how many undos get back to a board that can. */
+/* Dead ends: after a pour, check there's still a pour to make. If not, count how many undos get back to a board that can be sorted. */
 let stuckTimer=0;
 function checkSoon(){clearTimeout(stuckTimer);const c=cur;
   stuckTimer=setTimeout(()=>{if(cur!==c||!idle()||solved(c.bottles))return;const st=deadEnd(c);if(!st)return;
     c.stuck=st;render();if(!$("modal").innerHTML)deadCard(st)},T(300))}
 function deadEnd(c){
-  const moves=movesOf(c.bottles,c.hidden).length>0;
-  if(moves&&solvable(c.bottles,c.hidden,40000)!==false)return null;
+  if(movesOf(c.bottles,c.hidden).length)return null;
   let back=0;
   for(let k=1;k<=Math.min(c.undos,c.hist.length);k++){const h=c.hist[c.hist.length-k];
     if(solvable(h.b,h.h.map((x,q)=>Math.min(x,c.hidden[q]??x)),40000)!==false){back=k;break}}
-  return{moves,back};
+  return{back};
 }
 function deadCard(st){
   const H=save.helps,helps=H.barranco+H.guagua,n=st.back;
-  const why=st.moves?"There are still pours to make, but none of them lead to a sorted set.":"There's no pour left to make. Every top sand has nowhere to go.";
+  const why="There's no pour left to make. Every top sand has nowhere to go.";
   const fix=n?`Your last ${n===1?"pour":n+" pours"} led here. Undo ${n===1?"it":"them"} and you're back on track.`:cur.hist.length?"Undoing won't get you out of this one. Start the level over.":"Start the level over.";
   modal(`<div class="dead-head"><span class="dead-ico" aria-hidden="true"></span><div class="label">Sin salida</div></div>
     <h2 class="lava">Dead end</h2><p>${why}</p><p style="color:var(--fg)">${fix}</p>
