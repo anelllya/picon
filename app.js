@@ -399,21 +399,34 @@ function helpCard(){
     cur.stuck=null;closeModal();render();checkSoon()});
 }
 
-/* Dead ends: after a pour, check there's still a pour to make. If not, count how many undos get back to a board that can be sorted. */
+/* Dead ends: after a pour, check some pour sequence still corks a bottle or clears haze. Pours that only shuttle sand back and forth don't count. If none does, count how many undos get back to a board that can be sorted. */
 let stuckTimer=0;
 function checkSoon(){clearTimeout(stuckTimer);const c=cur;
   stuckTimer=setTimeout(()=>{if(cur!==c||!idle()||solved(c.bottles))return;const st=deadEnd(c);if(!st)return;
     c.stuck=st;render();if(!$("modal").innerHTML)deadCard(st)},T(300))}
 function deadEnd(c){
-  if(movesOf(c.bottles,c.hidden).length)return null;
+  if(canProgress(c.bottles,c.hidden))return null;
   let back=0;
   for(let k=1;k<=Math.min(c.undos,c.hist.length);k++){const h=c.hist[c.hist.length-k];
     if(solvable(h.b,h.h.map((x,q)=>Math.min(x,c.hidden[q]??x)),40000)!==false){back=k;break}}
-  return{back};
+  return{moves:movesOf(c.bottles,c.hidden).length>0,back};
 }
+/* true unless every reachable board has the same corks and haze as now; gives up as true when the search runs long */
+function canProgress(start,hid0,cap=20000){
+  const corks=bs=>bs.filter(corked).length,haze=h=>h.reduce((x,y)=>x+y,0);
+  const c0=corks(start),h0=haze(hid0);
+  const key=(bs,hid)=>bs.map((b,i)=>hid[i]+b.join("")).sort().join("|");
+  const seen=new Set([key(start,hid0)]),q=[[start,hid0]];
+  while(q.length){const[bs,hid]=q.pop();
+    for(const[i,j,n]of movesOf(bs,hid)){const nb=bs.map(x=>x.slice()),nh=hid.slice();for(let k=0;k<n;k++)nb[j].push(nb[i].pop());
+      nh[i]=Math.min(nh[i],Math.max(0,nb[i].length-1));
+      if(corks(nb)>c0||haze(nh)<h0)return true;
+      const k=key(nb,nh);if(seen.has(k))continue;seen.add(k);
+      if(seen.size>cap)return true;q.push([nb,nh])}}
+  return false}
 function deadCard(st){
   const H=save.helps,helps=H.barranco+H.guagua,n=st.back;
-  const why="There's no pour left to make. Every top sand has nowhere to go.";
+  const why=st.moves?"The pours left only shuffle sand back and forth. None of them can cork a bottle or clear the haze.":"There's no pour left to make. Every top sand has nowhere to go.";
   const fix=n?`Your last ${n===1?"pour":n+" pours"} led here. Undo ${n===1?"it":"them"} and you're back on track.`:cur.hist.length?"Undoing won't get you out of this one. Start the level over.":"Start the level over.";
   modal(`<div class="dead-head"><span class="dead-ico" aria-hidden="true"></span><div class="label">Sin salida</div></div>
     <h2 class="lava">Dead end</h2><p>${why}</p><p style="color:var(--fg)">${fix}</p>
