@@ -15,6 +15,7 @@ body.canaria{--sea-top:#4a2c18;--sea-bot:#150b05;--glow:rgba(235,150,80,.15);--m
 body.fuerte{--sea-top:#123b49;--sea-bot:#06181f;--glow:rgba(240,220,170,.09);--muted:#9cc0c6;--panel:#0a2129;--line:#1e4a58}
 body.lanzarote{--sea-top:#2b1410;--sea-bot:#0a0504;--glow:rgba(255,80,20,.15);--muted:#c49f90;--panel:#1c0f0b;--line:#47271c}
 body.graciosa{--sea-top:#0b3b45;--sea-bot:#03141a;--glow:rgba(120,230,220,.1);--muted:#93c4c4;--panel:#082228;--line:#1a4a52}
+body.master{--sea-top:#0b2b5e;--sea-bot:#030a1a;--glow:rgba(255,204,0,.14);--muted:#a9b9d6;--panel:#0a1730;--line:#1f3866}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%}
@@ -22,7 +23,7 @@ body{margin:0;background:var(--sea-bot);background-image:radial-gradient(90% 40%
 button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
 button:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:8px}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
-.app{position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 20px}
+.app{position:relative;z-index:1;overflow-x:clip;min-height:100%;display:flex;flex-direction:column;max-width:520px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 20px}
 .app.quake{animation:quake .7s linear}
 @keyframes quake{10%,50%,90%{transform:translate(-4px,2px)}30%,70%{transform:translate(4px,-2px)}}
 
@@ -44,6 +45,23 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-rad
 /* A finished souvenir is a die-cut sticker: white border, a tilt, a shadow lifting it off the board */
 .slot.done .mini{transform:rotate(var(--tilt));filter:drop-shadow(1.5px 0 0 #f4efe4) drop-shadow(-1.5px 0 0 #f4efe4) drop-shadow(0 1.5px 0 #f4efe4) drop-shadow(0 -1.5px 0 #f4efe4) drop-shadow(1px 3px 2px rgba(0,0,0,.55))}
 .slot.done .mn,.slot.done .mb{border-color:rgba(255,255,255,.85);background:rgba(244,239,228,.9)}
+/* Master chapter souvenir: the Canarian flag (white, blue, yellow), a die-cut sticker next to the title */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:24px}
+.head .logo{margin:0}
+/* The flag sits on the same baseline as the letters; its label hangs below */
+.flag{position:relative;flex:none;margin-bottom:calc(clamp(64px,22vw,104px) * .135)}
+.flag span{position:absolute;top:calc(100% + 8px);left:50%;translate:-50% 0;white-space:nowrap}
+.fl{width:66px;height:44px;display:flex;border-radius:3px;overflow:hidden}
+.fl i{flex:1}
+.flag:not(.done) .fl{opacity:.22;outline:1.5px dashed var(--muted);outline-offset:3px}
+.flag:not(.done) span{color:var(--muted)}
+.flag.done .fl{transform:rotate(6deg);filter:drop-shadow(1.5px 0 0 #f4efe4) drop-shadow(-1.5px 0 0 #f4efe4) drop-shadow(0 1.5px 0 #f4efe4) drop-shadow(0 -1.5px 0 #f4efe4) drop-shadow(1px 3px 2px rgba(0,0,0,.55))}
+.flag.done .fl i{background-image:radial-gradient(rgba(0,0,0,.14) .6px,transparent 1px),radial-gradient(rgba(255,255,255,.2) .6px,transparent 1px);background-size:4px 4px,5px 5px;background-position:0 0,2px 1px}
+.fl i:nth-child(1){background-color:#f7f7f2}
+.fl i:nth-child(2){background-color:#0768a9}
+.fl i:nth-child(3){background-color:#ffcc00}
+.flag span{font-size:10.5px;letter-spacing:.06em;line-height:1.2;text-align:center}
+.flag.done span{color:var(--gold);font-weight:600}
 .chapter{display:flex;flex-direction:column;gap:12px}
 details.chapter summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
 details.chapter summary::-webkit-details-marker{display:none}
@@ -58,6 +76,12 @@ details.chapter .dots{margin-top:12px}
 .dot.next{background:var(--gold);color:#1b1206;border-color:var(--gold)}
 .dot.cal{border-style:dashed}
 .dot:disabled{opacity:.45;cursor:default}
+/* Bonus dots are tall and thin, like the bonus bottles */
+.bonus{display:flex;flex-direction:column;gap:10px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.dot.bon{width:24px;height:40px;border-radius:12px 12px 10px 10px}
+.bonus-lock{margin:12px 0 0;font-size:12px;color:var(--muted)}
+.slot{position:relative}
+.star{position:absolute;top:-10px;right:calc(50% - 30px);color:var(--gold);font-size:15px;text-shadow:0 1px 3px rgba(0,0,0,.6);z-index:1}
 .reset{color:var(--muted);font-size:12px;text-decoration:underline;align-self:flex-start}
 
 /* Game */
@@ -85,6 +109,7 @@ details.chapter .dots{margin-top:12px}
 .layer.hz{background-size:64px 64px;border-top-color:rgba(120,90,50,.35);box-shadow:none}
 .layer.clear{animation:clear .5s ease}
 @keyframes clear{from{filter:sepia(1) brightness(1.6) blur(3px)}}
+.board.mix{align-items:flex-end}
 .stream{position:absolute;width:6px;border-radius:3px;transform-origin:50% 0;pointer-events:none;z-index:4;background-size:24px 24px}
 
 .bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}

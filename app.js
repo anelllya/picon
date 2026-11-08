@@ -1,7 +1,8 @@
 const $=id=>document.getElementById(id);
 const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
 const T=ms=>RM?1:ms;
-const CAP=4;
+/* Layers per bottle: 4 on the main path, more in the tall bonus bottles */
+let CAP=4;
 
 /* Sands */
 const SANDS={
@@ -26,12 +27,15 @@ const CHAPTERS=[
   {name:"Gran Canaria",cls:"canaria",from:61,to:75,souvenir:"gcgc",end:"A sticker of Maspalomas dune and calima joins the board. Fuerteventura is next."},
   {name:"Fuerteventura",cls:"fuerte",from:76,to:90,souvenir:"jgjc",end:"Fuerteventura's long bottle is stuck on the board. Lanzarote is next, with two new sands."},
   {name:"Lanzarote",cls:"lanzarote",from:91,to:105,souvenir:"pkoj",end:"Timanfaya survived. Lanzarote's flask joins the board. One island left."},
-  {name:"La Graciosa",cls:"graciosa",from:106,to:120,souvenir:"jogk",end:"Every island sorted. The board is full, and Archipiélago mode is open."},
-  {name:"Archipiélago",cls:null,from:121,to:Infinity,endless:true}
+  {name:"La Graciosa",cls:"graciosa",from:106,to:120,souvenir:"jogk",end:"Every island sorted. One chapter left: Archipiélago, where all eight islands share a board."},
+  {name:"Archipiélago",cls:"master",from:121,to:135,mix:true,end:"Eight islands, one flag. It flies next to the title now. Travesía, the endless crossing, is open."},
+  {name:"Travesía",cls:null,from:136,to:Infinity,endless:true}
 ];
-const ISLAND_CH=CHAPTERS.filter(c=>!c.endless);
+const ENDLESS=CHAPTERS.find(c=>c.endless).from;
+const ISLAND_CH=CHAPTERS.filter(c=>!c.endless&&!c.mix);
+const MASTER=CHAPTERS.find(c=>c.mix);
 const chapterOf=l=>CHAPTERS.find(c=>l>=c.from&&l<=c.to);
-const themeOf=l=>{const c=chapterOf(l);return c.endless?ISLAND_CH[(l-121)%8].cls:c.cls};
+const themeOf=l=>{const c=chapterOf(l);return c.endless?ISLAND_CH[(l-ENDLESS)%8].cls:c.cls};
 const SHAPES={
   hierro:{w:56,h:150,nr:.43,nh:16,br:"20px 20px 28px 28px"},
   palma:{w:46,h:180,nr:.43,nh:20,br:"14px 14px 18px 18px"},
@@ -42,7 +46,7 @@ const SHAPES={
   lanzarote:{w:58,h:150,nr:.32,nh:26,br:"40% 40% 50% 50% / 26% 26% 48% 48%"},
   graciosa:{w:52,h:118,nr:.46,nh:12,br:"22px 22px 26px 26px"}
 };
-const FX={palma:"ash",gomera:"mist",tenerife:"stars",canaria:"dust",fuerte:"wind",lanzarote:"heat",graciosa:"stars"};
+const FX={palma:"ash",gomera:"mist",tenerife:"stars",canaria:"dust",fuerte:"wind",lanzarote:"heat",graciosa:"stars",master:"glitter"};
 function cfg(level){
   if(level<=7)return{sands:"plg",empty:2,haze:0};
   if(level<=10)return{sands:"plg",empty:1,haze:0};
@@ -61,6 +65,10 @@ function cfg(level){
   if(level<=90)return{sands:level===90?"plgarscjg":"plgarscj",empty:2,haze:level<=80?2:3};
   if(level<=105)return{sands:level<=95?"plgarscjo":"plgarscjok",empty:2,haze:3};
   if(level<=120)return{sands:level===120?"plgarscjokp":"plgarscjok",empty:2,haze:3};
+  if(level<=135){const r=rng(level*4241+9),all="plgarscjok".split("");
+    for(let i=all.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
+    let s=all.slice(0,level<=123?9:10).join("");if(level>=131)s+=all[0];if(level===135)s+=all[1];
+    return{sands:s,empty:level===125||level===135?1:2,haze:level<=123?2:3}}
   const r=rng(level*7919+3);const all="plgarscjok".split("");
   for(let i=all.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[all[i],all[j]]=[all[j],all[i]]}
   return{sands:all.slice(0,8+Math.floor(r()*3)).join(""),empty:2,haze:[1,2,3,3][Math.floor(r()*4)]};
@@ -82,8 +90,11 @@ const STORY={
   96:{t:"New sand",s:"k"},
   105:{t:"Timanfaya",lava:1,x:"1 September 1730. The eruptions went on for six years and buried about a quarter of the island. Last level of Lanzarote."},
   106:{t:"La Graciosa",x:"Small bottles, all ten sands, full calima. The island has no paved roads and this chapter has no mercy."},
-  120:{t:"Last island level",x:"Eleven bottles of sand, every layer hidden except the top. Finish this and the board is full."},
-  121:{t:"Archipiélago",x:"Endless from here on: random islands, random sands, random calima. Helps still come every 10 levels."}
+  120:{t:"Last island level",x:"Eleven bottles of sand, every layer hidden except the top. Finish this and every island is on the board."},
+  121:{key:"master",t:"Archipiélago",x:"The master chapter. Bottles from all eight islands on one board, every sand you've met, and calima all the way. Sort all fifteen and the Canarian flag goes up next to the title."},
+  131:{key:"master2",t:"Doble",x:"From here on one sand fills two bottles. Look twice before you cork."},
+  135:{key:"master3",t:"Last level",lava:1,x:"Twelve bottles of sand from every island and a single empty bottle to work with. The last level of the archipelago."},
+  136:{key:"endless",t:"Travesía",x:"The endless crossing: random islands, random sands, random calima. Helps still come every 10 levels."}
 };
 
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -187,13 +198,39 @@ function generate(level){
       if(solvable(bs))return bs}}
   return null}
 
+/* Bonus levels: 10 per island, optional, unlocked once the island is sorted. Three tall thin bottles full of sand, one empty, and runs of different sizes so every pour moves a different amount. */
+const BCAP=[5,6,6,7,7,8,8,9,10,12];
+/* Fewest pours that sort the board, or 99 when the search runs long */
+function fewest(start,lim=150000){const key=bs=>bs.map(b=>b.join("")).sort().join("|"),z=start.map(()=>0);let fr=[start],d=0;const seen=new Set([key(start)]);
+  while(fr.length){if(fr.some(solved))return d;d++;const nx=[];
+    for(const bs of fr)for(const[i,j,n]of movesOf(bs,z)){const nb=bs.map(x=>x.slice());for(let q=0;q<n;q++)nb[j].push(nb[i].pop());const k=key(nb);if(seen.has(k))continue;seen.add(k);nx.push(nb)}
+    fr=nx;if(seen.size>lim)return 99}
+  return 99}
+function generateBonus(ci,k){
+  CAP=BCAP[k-1];const ch=ISLAND_CH[ci],r=rng((ci+1)*7907+k*131);
+  const pal=[...new Set(ch.souvenir+cfg(ch.to).sands)];
+  for(let i=pal.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[pal[i],pal[j]]=[pal[j],pal[i]]}
+  const sands=pal.slice(0,3),big=Math.max(2,Math.ceil(CAP/3)),cands=[];
+  for(let t=0;t<400&&cands.length<24;t++){
+    const chunks=[];for(const s of sands){let left=CAP;while(left){const c=Math.min(left,1+Math.floor(r()*big));chunks.push(Array(c).fill(s));left-=c}}
+    for(let i=chunks.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[chunks[i],chunks[j]]=[chunks[j],chunks[i]]}
+    const flat=chunks.flat(),bs=[0,1,2].map(i=>flat.slice(i*CAP,i*CAP+CAP));
+    if(bs.some(b=>runLen(b)>=CAP-1||b.slice(0,-1).some((x,q)=>{let n=1;while(b[q+n]===x)n++;return n>=CAP-1})))continue;
+    bs.push([]);if(solvable(bs)===true)cands.push({bs,m:fewest(bs)})}
+  // Later bonus levels and islands further east take boards that need more pours
+  cands.sort((a,b)=>a.m-b.m);const p=Math.min(1,(k-1)/9*.75+ci*.035);
+  return cands[Math.round(p*(cands.length-1))].bs}
+
 /* Save */
 const KEY="picon.v1";
-const fresh=()=>({level:1,done:0,helps:{barranco:0,guagua:0,alisio:0},earned:[],seen:[],r1:1});
+const fresh=()=>({level:1,done:0,helps:{barranco:0,guagua:0,alisio:0},earned:[],seen:[],bonus:{},r1:1,r2:1});
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.level)return s}catch(e){}return fresh()}
 let save=load();
 save.helps.alisio=save.helps.alisio||0;
+save.bonus=save.bonus||{};
 if(!save.r1){save.r1=1;if(save.earned.includes(10))save.helps.guagua++}
+/* The Archipiélago master chapter took over 121-135 from endless mode: send anyone already past 120 to its first level */
+if(!save.r2){save.r2=1;if(save.done>120){save.done=120;save.level=121}}
 if(save.done>0&&!save.seen.includes("onboard"))save.seen.push("onboard");
 persist();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
@@ -202,7 +239,7 @@ function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}
 const fx=$("fx"),fc=fx.getContext("2d");let parts=[],fxMode="",fxRun=false;
 function sizeFx(){const d=Math.min(2,devicePixelRatio||1);fx.width=innerWidth*d;fx.height=innerHeight*d;fc.setTransform(d,0,0,d,0,0)}
 addEventListener("resize",sizeFx);sizeFx();
-const FXN={ash:36,mist:7,stars:60,dust:50,wind:14,heat:26};
+const FXN={ash:36,mist:7,stars:60,dust:50,wind:14,heat:26,glitter:44};
 function setFx(mode){if(mode===fxMode&&parts.length)return;fxMode=mode;parts=[];if(RM||!mode){fc.clearRect(0,0,innerWidth,innerHeight);return}
   for(let i=0;i<FXN[mode];i++)parts.push(spawn(mode,true));if(!fxRun){fxRun=true;requestAnimationFrame(tick)}}
 function spawn(k,any){const R=Math.random,W=innerWidth,H=innerHeight;
@@ -210,6 +247,7 @@ function spawn(k,any){const R=Math.random,W=innerWidth,H=innerHeight;
   if(k==="mist")return{k,x:any?R()*W:-150,y:R()*H,vx:.12+R()*.18,vy:0,r:80+R()*120,c:"rgba(205,230,212,.045)"};
   if(k==="stars")return{k,x:R()*W,y:R()*H*.75,vx:0,vy:0,r:.5+R()*1.1,ph:R()*6,sp:.01+R()*.03,c:"#f4f6ff"};
   if(k==="dust")return{k,x:any?R()*W:-10,y:R()*H,vx:.8+R()*1.6,vy:(R()-.5)*.3,r:.7+R()*1.3,c:`rgba(225,150,90,${.2+R()*.35})`};
+  if(k==="glitter")return{k,x:R()*W,y:any?R()*H:H+10,vx:(R()-.5)*.15,vy:-(.12+R()*.28),r:.6+R()*1.4,ph:R()*6,sp:.02+R()*.04,c:R()<.7?"#ffcc00":"#f7f7f2"};
   if(k==="wind")return{k,x:any?R()*W:-60,y:R()*H,vx:3+R()*3,vy:0,len:20+R()*40,c:`rgba(240,225,190,${.06+R()*.1})`};
   return{k,x:R()*W,y:any?R()*H:H+10,vx:(R()-.5)*.2,vy:-(.3+R()*.6),r:.8+R()*1.6,c:`rgba(255,${90+R()*80|0},40,${.25+R()*.35})`}}
 function erupt(){if(RM)return;for(let i=0;i<140;i++){const ember=i<70;parts.push({x:innerWidth/2+(Math.random()-.5)*120,y:innerHeight+10,vx:(Math.random()-.5)*5,vy:-(6+Math.random()*9),r:ember?1.5+Math.random()*2.5:1+Math.random()*2.5,c:ember?`rgba(255,${80+Math.random()*90|0},30,.9)`:"rgba(120,115,110,.7)",ember:true,life:1})}}
@@ -219,7 +257,7 @@ function tick(){
     if(p.ember){p.vy+=.16;p.x+=p.vx;p.y+=p.vy;p.life-=.007;if(p.life<=0||p.y>innerHeight+20)return false;fc.globalAlpha=Math.max(0,p.life)}
     else{const W=innerWidth,H=innerHeight;
       if(p.k==="ash")p.x+=Math.sin(p.y/40)*.15;
-      if(p.k==="stars"){p.ph+=p.sp;fc.globalAlpha=.25+.55*(.5+.5*Math.sin(p.ph))}else fc.globalAlpha=1;
+      if(p.k==="stars"||p.k==="glitter"){p.ph+=p.sp;fc.globalAlpha=.25+.55*(.5+.5*Math.sin(p.ph))}else fc.globalAlpha=1;
       p.x+=p.vx;p.y+=p.vy;
       if(p.y>H+12||p.y<-12||p.x>W+(p.r||0)+(p.len||0)+10)Object.assign(p,spawn(p.k,false))}
     if(p.k==="wind"){fc.strokeStyle=p.c;fc.lineWidth=1.2;fc.beginPath();fc.moveTo(p.x,p.y);fc.lineTo(p.x-p.len,p.y);fc.stroke();return true}
@@ -236,20 +274,30 @@ function renderHome(){
   const TILT=[-6,4,-3,7,-5,3,-7,5];
   const shelf=ISLAND_CH.map((ch,i)=>{const done=save.done>=ch.to;const S=SHAPES[ch.cls];
     const bands=done?ch.souvenir.split("").map(s=>`<i style="background-image:url(${TILES[s]})"></i>`).join(""):"";
-    return`<div class="slot${done?" done":""}" style="--tilt:${TILT[i]}deg"><div class="mini" style="--nr:${S.nr};--br:${S.br}"><div class="mn"></div><div class="mb">${bands}</div></div><span>${ch.name}</span></div>`}).join("");
+    const star=(save.bonus[ch.cls]||0)>=10?`<b class="star" title="All 10 bonus levels sorted">&#9733;</b>`:"";
+    return`<div class="slot${done?" done":""}" style="--tilt:${TILT[i]}deg">${star}<div class="mini" style="--nr:${S.nr};--br:${S.br}"><div class="mn"></div><div class="mb">${bands}</div></div><span>${ch.name}</span></div>`}).join("");
   const chapters=CHAPTERS.filter(c=>c.from<=save.level).map(c=>{
-    if(c.endless)return`<div class="chapter"><div class="label">Archipiélago &middot; endless &middot; ${Math.max(0,save.done-120)} sorted</div></div>`;
+    if(c.endless)return`<div class="chapter"><div class="label">Travesía &middot; endless &middot; ${Math.max(0,save.done-ENDLESS+1)} sorted</div></div>`;
     const curCh=save.level>=c.from&&save.level<=c.to;
     let dots="";for(let i=c.from;i<=c.to;i++){const cls=(i<=save.done?"done":i===save.level?"next":"")+(cfg(i).haze?" cal":"");dots+=`<button class="dot ${cls}" data-l="${i}" ${i>save.level?"disabled":""}>${i}</button>`}
-    return`<details class="chapter" ${curCh?"open":""}><summary class="label">${c.name} &middot; ${Math.max(0,Math.min(save.done,c.to)-c.from+1)} of ${c.to-c.from+1}</summary><div class="dots">${dots}</div></details>`}).reverse().join("");
+    const ci=ISLAND_CH.indexOf(c);let bonus="";
+    if(ci>=0){const nb=save.bonus[c.cls]||0;
+      if(save.done<c.to)bonus=`<p class="bonus-lock">Sort all of ${c.name} to unlock 10 bonus levels.</p>`;
+      else{let bd="";for(let k=1;k<=10;k++)bd+=`<button class="dot bon ${k<=nb?"done":k===nb+1?"next":""}" data-ci="${ci}" data-k="${k}" ${k>nb+1?"disabled":""} aria-label="Bonus ${k}">${k}</button>`;
+        bonus=`<div class="bonus"><div class="label">Bonus &middot; ${nb} of 10 &middot; optional</div><div class="dots">${bd}</div></div>`}}
+    return`<details class="chapter" ${curCh?"open":""}><summary class="label">${c.name} &middot; ${Math.max(0,Math.min(save.done,c.to)-c.from+1)} of ${c.to-c.from+1}${ci>=0&&save.done>=c.to?` &middot; bonus ${save.bonus[c.cls]||0}/10`:""}</summary><div class="dots">${dots}</div>${bonus}</details>`}).reverse().join("");
   const next=true;
-  h.innerHTML=`<div><h1 class="logo">Picón</h1><p class="tag">Sort the sands of the islands, one bottle at a time.</p></div>
+  // The master chapter's souvenir: the Canarian flag, stuck next to the title
+  const flagDone=save.done>=MASTER.to;
+  const flag=`<div class="flag${flagDone?" done":""}" title="${flagDone?"Archipiélago, sorted":"Sort the Archipiélago chapter to raise the flag"}"><div class="fl"><i></i><i></i><i></i></div><span>${flagDone?"Archipiélago":"Levels 121–135"}</span></div>`;
+  h.innerHTML=`<div><div class="head"><h1 class="logo">Picón</h1>${flag}</div><p class="tag">Sort the sands of the islands, one bottle at a time.</p></div>
     <div><div class="label">Souvenirs</div><div class="shelf">${shelf}</div></div>
     <button class="cta" id="go" ${next?"":"disabled"}>Play level ${save.level}</button>
     ${chapters}
     <div class="links"><button class="reset" id="how">How to play</button><button class="reset" id="wipe">Reset progress</button></div>`;
   $("go").onclick=()=>startLevel(save.level);
-  h.querySelectorAll(".dot").forEach(d=>d.onclick=()=>startLevel(+d.dataset.l));
+  h.querySelectorAll(".dot:not(.bon)").forEach(d=>d.onclick=()=>startLevel(+d.dataset.l));
+  h.querySelectorAll(".dot.bon").forEach(d=>d.onclick=()=>startBonus(+d.dataset.ci,+d.dataset.k));
   $("how").onclick=()=>onboarding();
   $("wipe").onclick=()=>confirmWipe();
 }
@@ -260,25 +308,37 @@ function confirmWipe(){
 
 /* Game state */
 let cur=null,els=[];
-function startLevel(level){
-  const bs=generate(level),c=cfg(level),ch=chapterOf(level);
-  const hidden=bs.map(b=>b.length?Math.min(c.haze,b.length-1):0);
-  cur={level,ch,initial:bs.map(b=>b.slice()),initialHidden:hidden.slice(),bottles:bs.map(b=>b.slice()),hidden,hist:[],undos:3,sel:-1,busy:false,returning:false,pending:null,guagua:false,alisio:false,corkedSet:new Set(),stuck:null};
+function begin(o){
+  const hidden=o.bs.map(b=>b.length?Math.min(o.haze,b.length-1):0);
+  cur={level:o.level,ch:o.ch,bonus:o.bonus||null,shape:o.shape||null,shapes:o.shapes||null,th:o.th,initial:o.bs.map(b=>b.slice()),initialHidden:hidden.slice(),bottles:o.bs.map(b=>b.slice()),hidden,hist:[],undos:3,sel:-1,busy:false,returning:false,pending:null,guagua:false,alisio:false,corkedSet:new Set(),stuck:null};
   recomputeCorks();
-  const th=themeOf(level);cur.th=th;
-  document.body.className=th;
-  setFx(FX[th]||"");
+  document.body.className=o.th;
+  setFx(FX[o.th]||"");
   $("home").hidden=true;$("game").hidden=false;
-  $("chap").textContent=ch.name+(c.haze?" · Calima":"");
-  $("lvl").textContent=level;
-  const len=ch.endless?10:ch.to-ch.from+1,pos=ch.endless?(level-121)%10+1:level-ch.from+1;
-  $("prog").innerHTML=Array.from({length:len},(_,i)=>`<i class="${i<pos?"on":""}"></i>`).join("");
+  $("chap").textContent=o.label;
+  $("lvl").textContent=o.num;
+  $("prog").innerHTML=Array.from({length:o.len},(_,i)=>`<i class="${i<o.pos?"on":""}"></i>`).join("");
   $("board").className="board";
   render();
+}
+function startLevel(level){
+  CAP=4;const bs=generate(level),c=cfg(level),ch=chapterOf(level);
+  const order=Object.keys(SHAPES),sr=rng(level*613+5);
+  for(let i=order.length-1;i>0;i--){const j=Math.floor(sr()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  begin({level,ch,bs,haze:c.haze,th:themeOf(level),shapes:ch.mix?bs.map((_,i)=>order[i%order.length]):null,label:ch.name+(c.haze?" · Calima":""),num:level,
+    len:ch.endless?10:ch.to-ch.from+1,pos:ch.endless?(level-ENDLESS)%10+1:level-ch.from+1});
   const st=STORY[level],key=st&&(st.key||level);
   if(st&&!save.seen.includes(key)){save.seen.push(key);persist();story(st);return}
   if(c.haze&&!save.seen.includes("calima")){save.seen.push("calima");persist();
     modal(`<h2>Calima</h2><div class="sand"><div class="sw" style="background-image:url(${TILES.haze})"></div><div><small>Dust from the Sahara hides the bottom of every bottle. A hazy layer shows its sand once it reaches the top. The Alisio help blows it away.</small></div></div><button class="cta" id="ok">Start</button>`);$("ok").onclick=closeModal}
+}
+function startBonus(ci,k){
+  const ch=ISLAND_CH[ci],bs=generateBonus(ci,k);
+  // Tall thin bottles: the more layers, the taller, up to what fits on a small phone
+  const shape={w:32,h:Math.min(360,26+CAP*32),nr:.56,nh:16,br:"16px 16px 15px 15px"};
+  begin({level:0,ch,bs,haze:0,th:ch.cls,shape,bonus:{ci,k},label:ch.name+" · Bonus",num:"B"+k,len:10,pos:k});
+  if(!save.seen.includes("bonus")){save.seen.push("bonus");persist();
+    modal(`<h2>Bonus</h2><p>Tall bottles, ${CAP} layers deep and getting deeper. Three full, one empty, and every run a different size, so each pour moves a different amount.</p><p>Bonus levels are optional. They don't change your progress or earn helps. Sort all ten on an island and its sticker gets a star.</p><button class="cta" id="ok">Start</button>`);$("ok").onclick=closeModal}
 }
 function story(st){
   const show=()=>{const rows=(st.s||"").split("").filter(Boolean).map(s=>`<div class="sand"><div class="sw" style="background-image:url(${TILES[s]})"></div><div><strong>${SANDS[s].name}</strong><small>${SANDS[s].desc}</small></div></div>`).join("");
@@ -287,24 +347,26 @@ function story(st){
 }
 function paint(body,b,hid=0,growFrom=-1,dur=0,cleared=[]){
   body.innerHTML="";const anims=[];
-  b.forEach((s,k)=>{const d=document.createElement("div");const hz=k<hid;d.className="layer"+(hz?" hz":"")+(cleared.includes(k)?" clear":"");
+  b.forEach((s,k)=>{const d=document.createElement("div");const hz=k<hid;d.className="layer"+(hz?" hz":"")+(cleared.includes(k)?" clear":"");d.style.height=100/CAP+"%";
     d.style.backgroundImage=`url(${TILES[hz?"haze":s]})`;body.appendChild(d);
-    if(growFrom>=0&&k>=growFrom)anims.push(d.animate([{height:"0%"},{height:"25%"}],{duration:dur,easing:"linear",delay:(k-growFrom)*dur}))});
+    if(growFrom>=0&&k>=growFrom)anims.push(d.animate([{height:"0%"},{height:100/CAP+"%"}],{duration:dur,easing:"linear",delay:(k-growFrom)*dur}))});
   return anims}
 function render(newCorks=new Set(),cleared={}){
   const board=$("board");board.innerHTML="";els=[];
-  const n=cur.bottles.length;const perRow=n<=5?n:Math.ceil(n/2);const S=SHAPES[cur.th];const gx=n>8?10:14;
+  const n=cur.bottles.length;const perRow=n<=5?n:Math.ceil(n/2);const S=cur.shape||SHAPES[cur.shapes?"hierro":cur.th];const gx=cur.shape?30:n>8?10:14;
   const avail=board.parentElement.clientWidth||360;
   const w=Math.max(34,Math.min(S.w,Math.floor((avail-gx*(perRow-1))/perRow)));
   board.style.cssText=`--w:${w}px;--h:${S.h}px;--nr:${S.nr};--nh:${S.nh}px;--br:${S.br};column-gap:${gx}px;max-width:${perRow*w+(perRow-1)*gx}px`;
   cur.bottles.forEach((b,i)=>{
     const el=document.createElement("button");el.className="bottle"+(i===cur.sel?" sel":"")+(newCorks.has(i)?" pop":"")+(cur.alisio&&cur.hidden[i]?" aim":"");
+    if(cur.shapes){const B=SHAPES[cur.shapes[i]];el.style.cssText=`--h:${B.h}px;--nr:${B.nr};--nh:${B.nh}px;--br:${B.br}`}
     el.setAttribute("aria-label",`Bottle ${i+1}: ${b.length?b.map((s,k)=>k<cur.hidden[i]?"hazy":SANDS[s].name).join(", "):"empty"}`);
     el.innerHTML=`${corked(b)?'<div class="cork"></div>':""}<div class="neck"></div><div class="bbody"></div>`;
     paint(el.querySelector(".bbody"),b,cur.hidden[i],-1,0,cleared[i]||[]);
     el.addEventListener("pointerdown",e=>{e.preventDefault();tap(i)});
     el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tap(i)}};
     board.appendChild(el);els.push(el)});
+  board.classList.toggle("mix",!!cur.shapes);
   $("undoN").textContent=cur.undos;
   $("bUndo").disabled=!cur.undos||!cur.hist.length;
   $("bRestart").classList.toggle("pulse",(!cur.undos&&cur.hist.length>0&&!solved(cur.bottles))||(!!cur.stuck&&!cur.stuck.back));
@@ -393,7 +455,7 @@ function helpCard(){
     <button class="ghost" id="close">Close</button>`);
   $("close").onclick=closeModal;
   document.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{const k=o.dataset.k;save.helps[k]--;persist();
-    if(k==="barranco"){cur.bottles.push([]);cur.hidden.push(0);cur.initial.push([]);cur.initialHidden.push(0);cur.hist.forEach(h=>{h.b.push([]);h.h.push(0)})}
+    if(k==="barranco"){if(cur.shapes)cur.shapes.push(Object.keys(SHAPES)[cur.shapes.length%8]);cur.bottles.push([]);cur.hidden.push(0);cur.initial.push([]);cur.initialHidden.push(0);cur.hist.forEach(h=>{h.b.push([]);h.h.push(0)})}
     if(k==="guagua")cur.guagua=true;
     if(k==="alisio")cur.alisio=true;
     cur.stuck=null;closeModal();render();checkSoon()});
@@ -441,6 +503,7 @@ function deadCard(st){
 
 /* Win */
 function win(){
+  if(cur.bonus)return bonusWin();
   const L=cur.level;
   if(L>save.done){save.done=L;save.level=L+1}
   const earn=L%10===0&&!save.earned.includes(L);
@@ -449,7 +512,7 @@ function win(){
   let choice=null;
   const body=chapterEnd?`<h2>${ch.name}, done</h2><p>${ch.end}</p>`:`<h2>Level ${L} sorted</h2><p>${cur.undos} of 3 undos left unused.</p>`;
   const earnHtml=earn?`<p style="color:var(--fg)">You earned a help. Pick one to keep:</p><div class="pick">${Object.keys(HELPS).map(k=>`<button class="opt" data-h="${k}"><strong>${HELPS[k].name}</strong><small>${HELPS[k].earn}</small></button>`).join("")}</div>`:"";
-  const goHome=L===120;
+  const goHome=L===ENDLESS-1;
   modal(body+earnHtml+`<button class="cta" id="next" ${earn?"disabled":""}>${goHome?"See the full board":`Level ${L+1}`}</button>`);
   if(earn)document.querySelectorAll(".opt").forEach(o=>o.onclick=()=>{choice=o.dataset.h;document.querySelectorAll(".opt").forEach(x=>x.classList.toggle("on",x===o));$("next").disabled=false});
   $("next").onclick=()=>{
@@ -459,6 +522,15 @@ function win(){
   };
 }
 
+function bonusWin(){
+  const{ci,k}=cur.bonus,ch=ISLAND_CH[ci],last=k===10;
+  save.bonus[ch.cls]=Math.max(save.bonus[ch.cls]||0,k);persist();
+  modal(`<h2>${last?ch.name+" bonus, done":"Bonus "+k+" sorted"}</h2><p>${last?`All ten tall bottles sorted. ${ch.name}'s sticker gets a star.`:`${cur.undos} of 3 undos left unused.`}</p>
+    <div class="row"><button class="ghost" id="bh">Home</button><button class="cta" id="next" style="flex:2">${last?"Back to the islands":"Bonus "+(k+1)}</button></div>`);
+  const home=()=>{closeModal();$("game").hidden=true;$("home").hidden=false;renderHome()};
+  $("bh").onclick=home;
+  $("next").onclick=()=>{if(last)home();else{closeModal();startBonus(ci,k+1)}};
+}
 function modal(html,cls=""){$("modal").innerHTML=`<div class="scrim"><div class="card ${cls}" role="dialog" aria-modal="true">${html}</div></div>`}
 function closeModal(){$("modal").innerHTML=""}
 
@@ -616,7 +688,7 @@ const ONB=[
       s.classList.add("list");
       s.innerHTML=rows.map(([i,n,d])=>`<div class="sand"><div class="ico">${i}</div><div><strong>${n}</strong><small>${d}</small></div></div>`).join("")}}
 ];
-function onboarding(){
+function onboarding(){CAP=4;
   const el=document.createElement("div");el.className="onb";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","How to play");
   document.body.appendChild(el);let step=0;
   function show(){const tok=++onbTok,s=ONB[step],last=step===ONB.length-1;
